@@ -20,16 +20,19 @@ export default class Graph extends Component {
 
   componentDidMount() {
     this.graph = this.setContext();
-    this.setAxes();
-    this.drawStations(this.graph);
-    this.initAxes(this.graph);
-    this.drawAxes(this.graph);
+    this.initAxes();
+
+    if (this.props.stations && this.props.stations.length) {
+      this.setAxes();
+      this.drawStations();
+      this.drawAxes();
+    }
   }
 
   componentDidUpdate() {
     this.setAxes();
-    this.drawStations(this.graph);
-    this.drawAxes(this.graph);
+    this.drawStations();
+    this.drawAxes();
   }
 
   setContext() {
@@ -44,12 +47,12 @@ export default class Graph extends Component {
     return graph;
   }
 
-  initAxes(graph) {
-    graph.append('g')
+  initAxes() {
+    this.graph.append('g')
       .attr('transform', `translate(0, ${this.graphHeight})`)
       .attr('class', 'x axis')
 
-    graph.append('g').attr('class', 'y axis');
+    this.graph.append('g').attr('class', 'y axis');
   }
 
   setAxes() {
@@ -71,14 +74,14 @@ export default class Graph extends Component {
     this.colours = d3.scaleOrdinal(d3.schemeSet3).domain(stations.map(s => s.stationRef));
   }
 
-  drawAxes(graph) {
+  drawAxes() {
     // Draw the axes on the graph
-    const xAxis = graph.select('.x.axis');
+    const xAxis = this.graph.select('.x.axis');
 
     xAxis.transition()
       .call(d3.axisBottom(this.x));
 
-    const yAxis = graph.select('.y.axis');
+    const yAxis = this.graph.select('.y.axis');
 
     yAxis.transition()
       .call(d3.axisLeft(this.y));
@@ -123,23 +126,23 @@ export default class Graph extends Component {
 
       riverLabel.transition()
         .attr('transform', d => `translate(${getPosition(d.readings[0])})`)
-        .text(d => station.town);
+        .text(d => `${station.town}, ${station.stationRef}`);
 
       riverLabel.enter().append('text')
         .attr('class', 'riverLabel')
         .attr('transform', d => `translate(${getPosition(d.readings[0])})`)
         .attr('x', 3)
         .attr('stroke', 'none')
-        .text(d => station.town);
+        .text(d => `${station.town}, ${station.stationRef}`);
 
       riverLabel.exit().remove();
     });
 
   }
 
-  drawStations(graph) {
+  drawStations() {
     const { stations } = this.props
-    const station = graph.selectAll('.station')
+    const station = this.graph.selectAll('.station')
       .data(stations)
 
     station

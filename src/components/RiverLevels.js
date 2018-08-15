@@ -9,15 +9,17 @@ export default class RiverLevels extends Component {
 
     this.state = {
       isLoaded: false,
-      riverReadings: [],
-      selectedRiver: '',
-      selectedTown: ''
+      currentSearch: {},
+      stationsToPlot: [],
+      relatedRiverNames: [],
+      searchResults: []
     }
 
     this.api = new EnvironmentAPI({parameter: 'level', _sorted: true});
 
-    this.riverSelected = this.riverSelected.bind(this);
-    this.townSelected = this.townSelected.bind(this);
+    this.searchTown = this.searchTown.bind(this);
+    this.searchRiver = this.searchRiver.bind(this);
+    this.clearSearch = this.clearSearch.bind(this);
   }
 
   componentDidMount() {
@@ -31,24 +33,50 @@ export default class RiverLevels extends Component {
     })
   }
 
-  riverSelected(e) {
-    const { stations } = this.state;
-    const riverStations = stations.items.filter(s => s.riverName == e.target.value);
+  searchTown(e) {
+    const { stations, currentSearch } = this.state;
+    const { value } = e.target;
+    const stationsToSearch = stations.items.filter((s) => s.town == value);
+    const relatedRiverNames = new Set(stationsToSearch.map(s => s.riverName).sort());
+    const newSearch = Object.assign({}, currentSearch, {town: value});
 
-    this.api.stationReadings({items: riverStations}, {since: subDays(Date.now(), 7).toISOString(), _sorted: true})
-      .then(riverReadings => this.setState({riverReadings}));
+    delete newSearch.riverName;
 
-    this.setState({selectedRiver: e.target.value});
+    let newState = {relatedRiverNames: [...relatedRiverNames], currentSearch: newSearch, searchResults: stationsToSearch};
+
+    if(relatedRiverNames.size == 1) {
+      newState.currentSearch.riverName = [...relatedRiverNames][0];
+    }
+    this.setState(newState);
+
+    this.api.stationReadings({items: stationsToSearch}, {since: subDays(Date.now(), 7).toISOString(), _sorted: true})
+      .then(stationsToPlot => this.setState({stationsToPlot}));
   }
 
-  townSelected(e) {
-    const { stations } = this.state;
-    const riverStations = stations.items.filter(s => s.town == e.target.value);
+  searchRiver(e) {
+    const { stations, currentSearch, searchResults } = this.state;
+    const { value } = e.target;
+    let stationsToSearch = [];
+    const newSearch = Object.assign({}, currentSearch, {riverName: value});
 
-    this.api.stationReadings({items: riverStations}, {since: subDays(Date.now(), 7).toISOString(), _sorted: true})
-      .then(riverReadings => this.setState({riverReadings}));
+    if(!value) {
+      delete newSearch.riverName;
+      stationsToSearch = searchResults;
+    } else if(searchResults.length) {
+      stationsToSearch = searchResults.filter((s) => s.riverName == value)
+    } else {
+      stationsToSearch = stations.items.filter((s) => s.riverName == value);
+    }
 
-    this.setState({selectedTown: e.target.value});
+    this.setState({currentSearch: newSearch});
+
+    this.api.stationReadings({items: stationsToSearch}, {since: subDays(Date.now(), 7).toISOString(), _sorted: true})
+      .then(stationsToPlot => this.setState({stationsToPlot}));
+
+  }
+
+  clearSearch() {
+    this.setState({stationsToPlot: [], currentSearch: {}, relatedRiverNames: []});
   }
 
   renderDropdownOptions(options) {
@@ -56,29 +84,29 @@ export default class RiverLevels extends Component {
   }
 
   render() {
-    const { isLoaded, riverReadings, riverNames, townNames } = this.state;
+    const { isLoaded, riverNames, townNames, stationsToPlot, relatedRiverNames, relatedTownNames } = this.state;
+    const { riverName = '', town = '' } = this.state.currentSearch;
 
     if (isLoaded) {
       return (
         <Fragment>
           <div>
-            <select value={this.state.selectedTown} onChange={this.townSelected}>
-              <option key='no-value' value='' disabled={true}>Please select a town...</option>
+            <select name='town' value={town} onChange={this.searchTown}>
+              <option key='no-value' value=''>Please select a town...</option>
               { this.renderDropdownOptions(townNames) }
             </select>
-            <select value={this.state.selectedRiver} onChange={this.riverSelected}>
-              <option key='no-value' value='' disabled={true}>Please select a river...</option>
-              { this.renderDropdownOptions(riverNames) }
+            <select name='riverName' value={riverName} onChange={this.searchRiver} disabled={relatedRiverNames.length == 1}>
+              <option key='no-value' value=''>Please select a river...</option>
+              { this.renderDropdownOptions(town && relatedRiverNames.length ? relatedRiverNames : riverNames) }
             </select>
+            <button onClick={this.clearSearch}>Clear search</button>
           </div>
-          <Graph width="1250" height="600" stations={riverReadings} />
+          <Graph width="1250" height="600" stations={stationsToPlot} />
         </Fragment>
       )
     } else {
       return (
-        <Fragment>
-          <h1>Loading...</h1>
-        </Fragment>
+        <h1>Loading...</h1>
       )
     }
   }

@@ -20,18 +20,17 @@ export default class Graph extends Component {
 
   componentDidMount() {
     this.graph = this.setContext();
-    this.initAxes();
-
-    if (this.props.stations && this.props.stations.length) {
-      this.setAxes();
-      this.drawStations();
-      this.drawAxes();
-    }
+    this.drawGraph();
   }
 
   componentDidUpdate() {
+    this.drawGraph();
+  }
+
+  drawGraph() {
     this.setAxes();
     this.drawStations();
+    this.initAxes();
     this.drawAxes();
   }
 

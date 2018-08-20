@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import * as d3 from 'd3';
+import { interpolatePath } from 'd3-interpolate-path';
 
 export default class Graph extends Component {
   constructor(props) {
@@ -98,14 +99,22 @@ export default class Graph extends Component {
       const riverPlot = d3.select(this).selectAll('.riverPlot')
         .data(station.measures)
 
-      riverPlot.transition().attr('d', (d) => line(d.readings))
+      riverPlot.transition().attrTween('d', function(d) {
+          const previous = d3.select(this).attr('d');
+          const current = line(d.readings);
+
+          return interpolatePath(previous, current);
+        });
 
       riverPlot.enter().append('path')
+        .style('opacity', 0)
         .attr('class', 'riverPlot')
         .attr('d', (d) => line(d.readings))
         .attr('stroke', getColour(station.stationRef))
         .attr('stroke-width', '2')
         .attr('fill', 'none')
+        .transition()
+        .style('opacity', 1)
 
       riverPlot.exit().remove()
     });
@@ -128,11 +137,14 @@ export default class Graph extends Component {
         .text(d => `${station.town}, ${station.stationRef}`);
 
       riverLabel.enter().append('text')
+        .style('opacity', 0)
         .attr('class', 'riverLabel')
         .attr('transform', d => `translate(${getPosition(d.readings[0])})`)
         .attr('x', 3)
         .attr('stroke', 'none')
-        .text(d => `${station.town}, ${station.stationRef}`);
+        .text(d => `${station.town}, ${station.stationRef}`)
+        .transition()
+        .style('opacity', 1)
 
       riverLabel.exit().remove();
     });
